@@ -1,0 +1,872 @@
+#lang pie
+
+
+(claim one Nat)
+(define one (add1 zero))
+
+(claim two Nat)
+(define two (add1 one))
+
+(claim four Nat)
+(define four (add1 (add1 (add1 (add1 zero)))))
+
+(claim + (-> Nat Nat Nat))
+(define +
+  (lambda (a b)
+    (iter-Nat a
+      b
+      (lambda (samller)
+        (add1 samller)))))
+
+(claim Pear U)
+(define Pear (Pair Nat Nat))
+
+(claim Pear-maker U)
+(define Pear-maker (-> Nat Nat Pear))
+
+(claim elim-Pear (-> Pear Pear-maker Pear))
+(define elim-Pear
+  (lambda (pear maker)
+    (maker (car pear) (cdr pear))))
+
+(claim pearwise+ (-> Pear Pear Pear))
+(define pearwise+
+  (lambda (p1 p2)
+    (elim-Pear p1
+      (lambda (a1 a2)
+        (elim-Pear p2
+          (lambda (b1 b2)
+            (cons (+ a1 b1) (+ a2 b2))))))))
+
+(claim gauss (-> Nat Nat))
+(define gauss
+  (lambda (n)
+    (rec-Nat n
+      zero
+      (lambda (n-1 gauss-n-1)
+        (+ (add1 n-1) gauss-n-1)))))
+
+(claim * (-> Nat Nat Nat))
+(define *
+  (lambda (a b)
+    (rec-Nat a
+      zero
+      (lambda (a-1 *-a-1)
+        (+ b *-a-1)))))
+
+(claim flip
+  (Pi [(A U)
+       (D U)]
+    (-> (Pair A D)
+        (Pair D A))))
+(define flip
+  (lambda (C A)
+    (lambda (p)
+      (cons (cdr p) (car p)))))
+
+(claim elim-Pair
+  (Pi [(A U)
+       (D U)
+       (X U)]
+    (-> (Pair A D)
+        (-> A D X)
+        X)))
+
+(define elim-Pair
+  (lambda (A D X)
+    (lambda (p f)
+      (f (car p) (cdr p)))))
+
+(claim kar
+  (Pi [(A U)
+       (D U)]
+    (-> (Pair A D) A)))
+(define kar
+  (lambda (A D)
+    (lambda (p)
+      ((elim-Pair A D A) p (lambda (x y) x)))))
+
+(claim kdr
+  (Pi [(A U)
+       (D U)]
+    (-> (Pair A D) D)))
+(define kdr
+  (lambda (A D)
+    (lambda (p)
+      ((elim-Pair A D D) p (lambda (x y) y)))))
+
+(claim swap
+  (Pi [(A U)
+       (D U)]
+    (-> (Pair A D)
+        (Pair D A))))
+(define swap
+  (lambda (A D)
+    (lambda (p)
+      ((elim-Pair A D (Pair D A)) p (lambda (a d) (cons d a))))))
+
+(claim twin-Nat
+  (Pi [(A U)]
+    (-> A (Pair A A))))
+(define twin-Nat
+  (lambda (A)
+    (lambda (x)
+      (cons x x))))
+
+(claim expectations
+  (List Atom))
+(define expectations
+  (:: 'cooked
+    (:: 'eaten
+      (:: 'tried-cleaning
+        (:: 'understood
+          (:: 'slept nil))))))
+
+(claim length
+  (Pi [(E U)]
+    (-> (List E) Nat)))
+(define length
+  (lambda (E)
+    (lambda (xs)
+      (rec-List xs
+        0
+        (lambda (hd tl rs) (add1 rs))))))
+
+(claim append
+  (Pi [(E U)]
+    (-> (List E) (List E)
+      (List E))))
+(define append
+  (lambda (E)
+    (lambda (xs ys)
+      (rec-List xs
+        ys
+        (lambda (hd tl rs)
+          (:: hd rs))))))
+
+(claim snoc
+  (Pi [(E U)]
+    (-> (List E) E
+      (List E))))
+(define snoc
+  (lambda (E)
+    (lambda (xs e)
+      (rec-List xs
+        (:: e nil)
+        (lambda (hd tl rs)
+          (:: hd rs))))))
+
+(claim reverse
+  (Pi [(E U)]
+    (-> (List E)
+        (List E))))
+(define reverse
+  (lambda (E)
+    (lambda (xs)
+      (rec-List xs
+        (the (List E) nil)
+        (lambda (hd tl rs)
+          (snoc E rs hd))))))
+
+(claim first-of-one
+  (Pi [(E U)
+       (k Nat)]
+    (-> (Vec E (add1 k))
+        E)))
+(define first-of-one
+  (lambda (E k)
+    (lambda (v) (head v))))
+
+(claim first-of-two
+  (Pi [(E U)
+       (k Nat)]
+    (Pi [(y (Vec E (add1 (add1 k))))] ;; -> is syntax sugar for Pi
+        E)))
+(define first-of-two
+  (lambda (E k)
+    (lambda (v)
+      (head (tail v)))))
+
+(claim rest
+  (Pi [(E U)
+       (k Nat)]
+    (-> (Vec E (add1 k))
+        (Vec E k))))
+(define rest
+  (lambda (E k)
+    (lambda (vs)
+      (tail vs))))
+
+(claim peas
+  (Pi [(E U)
+       (k Nat)]
+    (-> E (Vec E k))))
+(define peas
+  (lambda (E k e)
+    (ind-Nat k
+      (lambda (k) (Vec E k))
+      (the (Vec E 0) vecnil)
+      (lambda (k-1 rs)
+        (vec:: e rs)))))
+
+(claim last
+  (Pi [(E U)
+       (l Nat)]
+    (-> (Vec E (add1 l))
+        E)))
+(define last
+  (lambda (E l)
+    (ind-Nat l
+      (lambda (k) (-> (Vec E (add1 k)) E)) ;; (k: Nat) -> Vec E (k + 1) -> E
+      (lambda (xs) (first-of-one E 0 xs))  ;; Vec E 1 -> E
+      (lambda (l-1 rs)                     ;; (n_1 : Nat) -> (Vec E n_1 -> E) -> (Vec E n -> E)
+        (lambda (es)
+          (rs (tail es)))))))
+
+(claim drop-last
+  (Pi [(E U)
+       (l Nat)]
+    (-> (Vec E (add1 l))
+        (Vec E l))))
+(define drop-last
+  (lambda (E l)
+    (ind-Nat l
+      (lambda (k) (-> (Vec E (add1 k)) (Vec E k)))
+      (lambda (v1) vecnil)
+      (lambda (l-1 f) ;; f :: (Vec E l -> Vec E l-1) -> (Vec E l+1 -> Vec E l)
+        (lambda (vl) ;; Vec E l+1
+          (vec:: (head vl) (f (tail vl))))))))
+
+(claim incr
+  (-> Nat Nat))
+(define incr
+  (lambda (l)
+    (iter-Nat l
+      1
+      (+ 1))))
+
+(claim +1=add1
+  (Pi [(n Nat)]
+    (= Nat (+ 1 n) (add1 n))))
+(define +1=add1
+  (lambda (n) (same (add1 n))))
+
+(claim incr=add1
+  (Pi [(n Nat)]
+    (= Nat (incr n) (add1 n))))
+(define incr=add1
+  (lambda (n)
+    (ind-Nat n
+      (lambda (k) (= Nat (incr k) (add1 k)))
+      (same 1)
+      (lambda (n-1 rs)
+        ;; (= Nat (incr k-1) (add1 k-1)) -> (= Nat (incr (add1 k-1)) (add1 (add1 k-1)))
+        ;; (incr (add1 k)) == (add1 (incr k))
+        ;;;; (cong rs (+ 1))))))
+        (replace rs ;; rs : (= Nat (incr k) (add1 k))
+          ;; from : (incr k)
+          ;; to : (add1 k)
+          (lambda (v) (= Nat (add1 (incr n-1)) (add1 v)))
+          (same (add1 (incr n-1))))))))
+
+(claim double
+  (-> Nat Nat))
+(define double
+  (lambda (n)
+    (iter-Nat n
+      0
+      (+ 2))))
+
+(claim twice
+  (-> Nat Nat))
+(define twice
+  (lambda (n)
+    (+ n n)))
+
+;; (+ n (add1 j)) === (add1 (+ n j))
+(claim add1+=+add1
+  (Pi [(n Nat)
+       (j Nat)]
+    (= Nat
+       (add1 (+ n j))
+       (+ n (add1 j)))))
+(define add1+=+add1
+  (lambda (n j)
+    (ind-Nat n
+      (lambda (k) (= Nat (add1 (+ k j)) (+ k (add1 j))))
+      (same (add1 j))
+      (lambda (k-1 rs)
+        ;; rs : (= Nat (add1 (+ k-1 j)) (+ k-1 (add1 j)))
+        ;; from : (add1 (+ k-1 j))
+        ;; to : (add1 (+ k-1 (add1 j))
+        ;; result : (= Nat (add1 (+ (add1 k-1) j)) (+ (add1 k-1) (add1 j)))
+        (replace rs
+          (lambda (v) (= Nat (add1 (+ (add1 k-1) j)) (add1 v)))
+          (same (add1 (+ (add1 k-1) j))))))))
+
+(claim twice=double
+  (Pi [(n Nat)]
+    (= Nat
+       (twice n)
+       (double n))))
+(define twice=double
+  (lambda (n)
+    (ind-Nat n
+      (lambda (k) (= Nat (twice k) (double k)))
+      (same 0)
+      ;; (= Nat (twice (add1 n-1)) (double (add1 n-1)))
+      ;; (= Nat (add1 (+ n-1 (add1 n-1))) (add1 (add1 (double n-1)))) \
+      ;; need (+ n-1 (add1 n-1)) === (add1 (double n-1))
+      (lambda (n-1 rs)
+        ;; 
+        (replace (add1+=+add1 n-1 n-1)
+          ;; (= Nat (add1 (+ n-1 n-1)) (+ n-1 (add1 n-1)))
+          ;; rs :: (= Nat (twice k-1) (double k-1))
+          ;; from : twice k-1
+          ;; to : twice k-1
+          (lambda (k) (= Nat (add1 k) (add1 (add1 (double n-1)))))
+          (cong rs (+ 2)))))))
+
+
+(claim double-Vec
+  (Pi [(E U)
+       (l Nat)]
+    (-> (Vec E l)
+        (Vec E (double l)))))
+(define double-Vec
+  (lambda (E l)
+    (ind-Nat l
+      (lambda (k) (-> (Vec E k) (Vec E (double k))))
+      (lambda (v) vecnil)
+      (lambda (k-1 rs)
+        ;; rs : (-> (Vec E k-1) (Vec E (double k-1)))
+        (lambda (v)
+          (vec:: (head v)
+            (vec:: (head v)
+              (rs (tail v)))))))))
+(claim twice-Vec
+  (Pi [(E U)
+       (l Nat)]
+    (-> (Vec E l)
+        (Vec E (twice l)))))
+(define twice-Vec
+  (lambda (E l)
+    (lambda (es)
+      (replace (symm (twice=double l)) ;; twice l = double l
+        (lambda (k) (Vec E k))
+        (double-Vec E l es)))))
+
+(claim more-expectations
+  (Vec Atom 3))
+(define more-expectations
+  (vec:: 'need-induction
+    (vec:: 'understood-induction
+      (vec:: 'built-function vecnil))))
+
+(claim theorem-exists
+  (Sigma [(es (List Atom))]
+    (= (List Atom)
+       es
+       (reverse Atom es))))
+(define theorem-exists
+  (cons
+    (the (List Atom) nil)
+    (same nil)))
+#|
+; Version, restrict nothing, return dependent pair, length and vector
+(claim list->vec
+  (Pi [(E U)]
+    (-> (List E)
+      (Sigma [(l Nat)]
+        (Vec E l)))))
+(define list->vec
+  (lambda (E xs)
+    (rec-List xs
+      (the (Sigma ((l Nat)) (Vec E l)) (cons zero vecnil))
+      (lambda (hd tl rs)
+        (cons (add1 (car rs))
+          (vec:: hd (cdr rs)))))))
+|#
+;; Version 2: restrict length equality
+(claim list->vec
+  (Pi [(E U)
+       (es (List E))]
+    (Vec E (length E es))))
+
+(define list->vec
+  (lambda (E es)
+    (ind-List es
+      (lambda (xs) (Vec E (length E xs)))
+      vecnil
+      (lambda (hd tl rs)
+        (vec:: hd rs)))))
+  
+
+(claim replicate
+  (Pi [(E U)
+       (l Nat)]
+    (-> E (Vec E l))))
+(define replicate
+  (lambda (E l)
+    (lambda (e)
+      (ind-Nat l
+        (lambda (k) (Vec E k))
+        vecnil
+        (lambda (l-1 rs)
+          (vec:: e rs))))))
+
+(claim vec-append
+  (Pi [(E U)
+       (i Nat)
+       (j Nat)]
+    (-> (Vec E i)
+        (Vec E j)
+        (Vec E (+ i j)))))
+#|
+;; a work solution
+(define vec-append
+  (lambda (E i j)
+    (ind-Nat i
+      (lambda (k) (-> (Vec E k)
+                      (Vec E j)
+                      (Vec E (+ k j))))
+      (lambda (xs ys) ys)
+      (lambda (i-1 rs)
+        (lambda (xs ys)
+          (vec:: (head xs) (rs (tail xs) ys)))))))
+|#
+(define vec-append
+  (lambda (E i j)
+    (lambda (xs ys)
+      (ind-Vec i xs
+        (lambda (k v) (Vec E (+ k j)))
+        ys
+        (lambda (i-1 hd tl rs)
+          (vec:: hd rs))))))
+
+(claim vec->list
+  (Pi [(E U)
+       (l Nat)]
+    (-> (Vec E l)
+        (List E))))
+(define vec->list
+  (lambda (E l)
+    (lambda (vs)
+      (ind-Vec l vs
+        (lambda (k v) (List E))
+        nil
+        (lambda (l-1 hd tl rs)
+          (:: hd rs))))))
+
+(claim Treat-Statement U)
+(define Treat-Statement
+  (Pi [(some-treats (List Atom))
+       (more-treats (List Atom))]
+    (-> (= (List Atom) some-treats more-treats)
+        (= (List Atom) (:: 'plattar some-treats) (:: 'plattar more-treats)))))
+
+(claim ::plattar
+  (-> (List Atom) (List Atom)))
+(define ::plattar
+  (lambda (vs) (:: 'plattar vs)))
+
+(claim treat-proof Treat-Statement)
+(define treat-proof
+  (lambda (s m)
+    (lambda (treats=)
+      (cong treats= ::plattar))))
+        
+(claim length-treats
+  (Pi [(some-treats (List Atom))
+       (more-treats (List Atom))]
+    (-> (= (List Atom)
+          some-treats
+          more-treats)
+        (= Nat
+          (length Atom some-treats)
+          (length Atom more-treats)))))
+(define length-treats
+  (lambda (s m)
+    (lambda (treats=)
+      (cong treats= (length Atom)))))
+
+(claim ::-fun
+  (Pi [(E U)]
+    (-> E (List E) (List E))))
+(define ::-fun
+  (lambda (E e es) (:: e es)))
+    
+
+(claim list->vec->list
+  (Pi [(E U)
+       (xs (List E))]
+    (= (List E)
+       xs
+       (vec->list E (length E xs) (list->vec E xs)))))
+(define list->vec->list
+  (lambda (E xs)
+    (ind-List xs
+      (lambda (xs) (= (List E) xs (vec->list E (length E xs) (list->vec E xs))))
+      (same (the (List E) nil))
+      (lambda (hd tl rs)
+        (cong rs (::-fun E hd))))))
+
+(claim Even (-> Nat U))
+(define Even
+  (lambda (n)
+    (Sigma [(half Nat)]
+           (= Nat n (double half)))))
+(claim even-10
+  (Even 10))
+(define even-10
+  (cons 5 (same 10)))
+
+(claim +two-even
+  (Pi [(n Nat)]
+    (-> (Even n)
+        (Even (+ 2 n)))))
+(define +two-even
+  (lambda (n en)
+    (cons (add1 (car en))
+      (cong (cdr en) (+ 2)))))
+
+(claim zero-is-even
+  (Even 0))
+(define zero-is-even
+  (cons 0 (same 0)))
+
+(claim two-is-even
+  (Even 2))
+;; (define two-is-even
+;;  (cons 1 (same 2)))
+(define two-is-even
+  (+two-even 0 zero-is-even))
+
+(claim Odd
+  (-> Nat U))
+(define Odd
+  (lambda (n)
+    (Sigma [(half Nat)]
+           (= Nat n (add1 (double half))))))
+
+(claim one-is-odd
+  (Odd 1))
+(define one-is-odd
+  (cons 0 (same 1)))
+
+(claim thirteen-is-odd
+  (Odd 13))
+(define thirteen-is-odd
+  (cons 6 (same 13)))
+
+(claim add1-even->odd
+  (Pi [(n Nat)]
+    (-> (Even n)
+        (Odd (add1 n)))))
+(define add1-even->odd
+  (lambda (n)
+    (lambda (evenn)
+      ;; (= Nat n (double half))
+      (cons (car evenn) ;; exist half
+        (cong (cdr evenn) (+ 1))))))
+
+(claim add1-odd->even
+  (Pi [(n Nat)]
+    (-> (Odd n)
+        (Even (add1 n)))))
+(define add1-odd->even
+  (lambda (n)
+    (lambda (oddn)
+      ;; (= Nat n (add1 (double half)))
+      (cons (add1 (car oddn)) ;; exist half
+        (cong (cdr oddn) (+ 1))))))
+
+(claim even-or-odd
+  (Pi [(n Nat)]
+    (Either (Even n) (Odd n))))
+(define even-or-odd
+  (lambda (n)
+    (ind-Nat n
+      (lambda (k) (Either (Even k) (Odd k)))
+      (left zero-is-even)
+      (lambda (k-1 either)
+        (ind-Either either
+          (lambda (e) (Either (Even (add1 k-1)) (Odd (add1 k-1))))
+          (lambda (l) (right (add1-even->odd k-1 l)))
+          (lambda (r) (left (add1-odd->even k-1 r))))))))
+
+(claim Maybe
+  (-> U U))
+(define Maybe
+  (lambda (X) (Either X Trivial)))
+
+(claim nothing
+  (Pi [(E U)]
+    (Maybe E)))
+(define nothing
+  (lambda (E)
+    (right sole)))
+
+(claim just
+  (Pi [(E U)]
+    (-> E (Maybe E))))
+(define just
+  (lambda (E)
+    (lambda (e)
+      (left e))))
+
+(claim maybe-head
+  (Pi [(E U)]
+    (-> (List E)
+        (Maybe E))))
+(define maybe-head
+  (lambda (E xs)
+    (rec-List xs
+      (nothing E)
+      (lambda (hd tl rs)
+        (just E hd)))))
+
+(claim maybe-tail
+  (Pi [(E U)]
+    (-> (List E)
+        (Maybe (List E)))))
+(define maybe-tail
+  (lambda (E)
+    (lambda (xs)
+      (rec-List xs
+        (nothing (List E))
+        (lambda (hd tl rs)
+          (just (List E) tl))))))
+
+(claim list-ref
+  (Pi [(E U)]
+    (-> Nat (List E) (Maybe E))))
+(define list-ref
+  (lambda (E)
+    (lambda (n)
+      (rec-Nat n
+        (maybe-head E)
+        (lambda (n-1 rs)
+          (lambda (es)
+            (ind-Either (maybe-tail E es)
+              (lambda (e) (Maybe E))
+              (lambda (l) (rs l))
+              (lambda (r) (nothing E)))))))))
+
+(claim similarly-absurd
+  (-> Absurd Absurd))
+(define similarly-absurd
+  (lambda (x) x))
+
+(claim Fin
+  (-> Nat U))
+(define Fin
+  (lambda (n)
+    (iter-Nat n
+      Absurd
+      Maybe)))
+
+(claim fzero
+  (Pi [(n Nat)]
+    (Fin (add1 n))))
+(define fzero
+  (lambda (n)
+    (nothing (Fin n))))
+
+(claim fadd1
+  (Pi [(n Nat)]
+    (-> (Fin n)
+        (Fin (add1 n)))))
+(define fadd1
+  (lambda (n)
+    (lambda (fn)
+      (just (Fin n) fn))))
+
+(claim vec-ref
+  (Pi [(E U)
+       (l Nat)]
+    (-> (Fin l)
+        (Vec E l)
+        E)))
+(define vec-ref
+  (lambda (E l)
+    (ind-Nat l
+      (lambda (k) (-> (Fin k) (Vec E k) E))
+      (lambda (f0 v0) (ind-Absurd f0 E))
+      (lambda (l-1 rs)
+        (lambda (fk vs)
+          (ind-Either fk
+            (lambda (i) E)
+            (lambda (i-1) (rs i-1 (tail vs)))
+            (lambda (_) (head vs))))))))
+
+(claim =consequence
+  (-> Nat Nat U))
+(define =consequence
+  (lambda (n j)
+    (which-Nat n
+      (which-Nat j
+        Trivial
+        (lambda (j-1) Absurd))
+      (lambda (n-1)
+        (which-Nat j
+          Absurd
+          (lambda (j-1) (= Nat n-1 j-1)))))))
+
+(claim =consequence-same
+  (Pi [(n Nat)]
+    (=consequence n n)))
+(define =consequence-same
+  (lambda (n)
+    (ind-Nat n
+      (lambda (k) (=consequence k k))
+      sole
+      (lambda (k-1 rs)
+        (same k-1)))))
+
+(claim use-Nat=
+  (Pi [(n Nat)
+       (j Nat)]
+    (-> (= Nat n j)
+        (=consequence n j))))
+(define use-Nat=
+  (lambda (n j)
+    (lambda (n=j)
+      ; (=consequcen n j)
+      (replace n=j ;; (= Nat n j)
+        ;; from : n
+        ;; to : j
+        (lambda (k) (=consequence n k))
+        ;; (=consequnce n n)
+        (=consequence-same n)))))
+    
+(claim zero-not-add1
+  (Pi [(n Nat)]
+    (-> (= Nat 0 (add1 n))
+        Absurd)))
+(define zero-not-add1
+  (lambda (n)
+    (use-Nat= 0 (add1 n))))
+
+(claim donut-absurdity
+  (-> (= Nat 0 6)
+      (= Atom 'powered 'glazed)))
+(define donut-absurdity
+  (lambda (zero=six)
+    (ind-Absurd
+      (zero-not-add1 5 zero=six)
+      (= Atom 'powered 'glazed))))
+
+(claim sub1=
+  (Pi [(n Nat)
+       (j Nat)]
+    (-> (= Nat (add1 n) (add1 j))
+        (= Nat n j))))
+(define sub1=
+  (lambda (n j)
+    (use-Nat= (add1 n) (add1 j))))
+        
+(claim one-not-six
+  (-> (= Nat 1 6)
+      Absurd))
+(define one-not-six
+  (lambda (one=six)
+    (zero-not-add1 4 (sub1= 0 5 one=six))))
+
+(claim front
+  (Pi [(E U)
+       (n Nat)]
+    (-> (Vec E (add1 n))
+        E)))
+(define front
+  (lambda (E)
+    (lambda (l v)
+      ((ind-Vec (add1 l) v
+        (lambda (k v) (Pi [(j Nat)] (-> (= Nat k (add1 j)) E)))
+        (lambda (j e) (ind-Absurd (zero-not-add1 j e) E))
+        (lambda (l-1 h t rs)
+           (lambda (j eq) h)))
+        l (same (add1 l))))))
+
+;; exclude-middle law
+;; (claim pem
+;;   (Pi [(X U)]
+;;    (Either X (-> X Absurd))))
+;; cannot prove directly
+;; (define pem
+;;  (lambda (X) TODO))
+
+;; prove
+;; not exclude-middle law is false
+(claim pem-not-false
+  (Pi [(X U)]
+    (-> (-> (Either X (-> X Absurd))
+            Absurd)
+        Absurd)))
+(define pem-not-false
+  (lambda (X)
+    (lambda (pem-false)
+      (pem-false (right
+                   (lambda (x)
+                     (pem-false (left x))))))))
+
+(claim Dec (-> U U))
+(define Dec
+  (lambda (X)
+    (Either X (-> X Absurd))))
+
+(claim Pem
+  (Pi [(X U)] (Dec X)))
+
+(claim zero?
+  (Pi [(j Nat)]
+    (Dec (= Nat 0 j))))
+(define zero?
+  (lambda (j)
+    (ind-Nat j
+      (lambda (k) (Dec (= Nat 0 k)))
+      (left (same 0))
+      (lambda (j-1 rs)
+        (right
+          (lambda (eq)
+            (zero-not-add1 j-1 eq)))))))
+
+(claim add1-not-zero
+  (Pi [(n Nat)]
+    (-> (= Nat (add1 n) 0)
+        Absurd)))
+(define add1-not-zero
+  (lambda (n)
+    (use-Nat= (add1 n) 0)))
+
+(claim dec-add1
+  (Pi [(n-1 Nat)
+       (j-1 Nat)]
+    (-> (Dec (= Nat n-1 j-1))
+        (Dec (= Nat (add1 n-1) (add1 j-1))))))
+(define dec-add1
+  (lambda (n-1 j-1 eq-or-not)
+    (ind-Either eq-or-not
+      (lambda (t) (Dec (= Nat (add1 n-1) (add1 j-1))))
+      (lambda (l) (left (cong l (+ 1))))
+      (lambda (r) (right (lambda (e) (r (sub1= n-1 j-1 e))))))))
+
+(claim nat=?
+  (Pi [(i Nat)
+       (j Nat)]
+    (Dec (= Nat i j))))
+(define nat=?
+  (lambda (i j)
+    ((ind-Nat i
+       (lambda (k) (Pi [(j Nat)] (Dec (= Nat k j))))
+       zero?
+       (lambda (i-1 ri)
+         (lambda (j)
+           (ind-Nat j
+             (lambda (k) (Dec (= Nat (add1 i-1) k)))
+             (right (add1-not-zero i-1))
+             (lambda (j-1 rj)
+               (dec-add1 i-1 j-1 (ri j-1)))))))
+      j)))
+      
+       
